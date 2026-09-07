@@ -16,3 +16,7 @@ from macpkg_migrate_core import Identity, candidates_for, plan_record
 
 Manager-specific applications retain inventory, target availability checks,
 installation, verification, rollback guidance, and user-facing workflows.
+
+Releases are published to PyPI from the `pypi` GitHub environment using
+trusted publishing. Configure `tomck/macpkg-migrate-core` as a trusted
+publisher on PyPI before publishing the first release.
