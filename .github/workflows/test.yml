@@ -14,3 +14,12 @@ jobs:
           python-version: "3.x"
       - run: python -m pip install --upgrade pip build
       - run: python -m build
+      - run: python -m pip install dist/*.whl
+      - run: |
+          python - <<'PY'
+          import macpkg_migrate_core
+          from macpkg_migrate_core import Identity
+          assert macpkg_migrate_core.__version__ == "0.3.0"
+          assert Identity("homebrew", "formula", "wget").native_name == "wget"
+          print("installed package smoke test passed")
+          PY
