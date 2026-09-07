@@ -1,0 +1,15 @@
+[project]
+name = "macpkg-migrate-core"
+version = "0.3.0"
+description = "Manager-neutral planning and safety primitives for Mac package migration"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["macpkg_migrate_core"]
+package-dir = {"macpkg_migrate_core" = "."}
