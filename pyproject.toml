@@ -1,6 +1,6 @@
 [project]
 name = "macpkg-migrate-core"
-version = "0.3.0"
+version = "0.3.1"
 description = "Manager-neutral planning and safety primitives for Mac package migration"
 readme = "README.md"
 requires-python = ">=3.9"
