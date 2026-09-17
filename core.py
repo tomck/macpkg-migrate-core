@@ -156,6 +156,63 @@ def plan_record(
     }
 
 
+DARWIN_BOTTLE_TAGS = {
+    18: "mojave",
+    19: "catalina",
+    20: "big_sur",
+    21: "monterey",
+    22: "ventura",
+    23: "sonoma",
+    24: "sequoia",
+    25: "tahoe",
+}
+FINK_TREES = {18: "10.14", 19: "10.15"}
+
+
+def host_bins(system: str | None = None, machine: str | None = None, mac_major: int | None = None) -> set[str]:
+    """Tokens meaning binary-available on this host, across manager vocabularies.
+
+    Pure ranking input; never confidence. All parameters injectable for tests.
+    """
+    import platform
+
+    system = system if system is not None else platform.system()
+    machine = machine if machine is not None else platform.machine()
+    if mac_major is None:
+        try:
+            mac_major = int((platform.mac_ver()[0] or "0").split(".")[0])
+        except (ValueError, IndexError):
+            mac_major = 0
+    arch = {"arm64": "arm64", "x86_64": "x86_64"}.get(machine, machine)
+    tokens: set[str] = set()
+    if system == "Darwin" and arch in ("arm64", "x86_64") and mac_major:
+        darwin = mac_major + 9
+        codename = DARWIN_BOTTLE_TAGS.get(darwin)
+        if codename:
+            tokens.add(codename if arch == "x86_64" else f"arm64_{codename}")
+        tokens.add(f"darwin_{darwin}.{arch}")
+        tree = FINK_TREES.get(darwin)
+        if tree:
+            tokens.add(f"{tree}/binary-darwin-{arch}")
+    elif system == "Linux" and arch in ("arm64", "x86_64"):
+        tokens.add(f"{arch}_linux")
+    return tokens
+
+
+def install_method(binaries: Iterable[str], host: Iterable[str] | None = None) -> str:
+    """binary, source, or unknown for a candidate on this host.
+
+    Empty means unknown, never source-only. Ranking-only; never confidence.
+    """
+    binaries = list(binaries or [])
+    if not binaries:
+        return "unknown"
+    if "any" in binaries:
+        return "binary"
+    host = set(host_bins() if host is None else host)
+    return "binary" if set(binaries) & host else "source"
+
+
 def install_allowed(record: Mapping[str, Any]) -> bool:
     """Return whether shared policy permits unattended installation."""
     recommendation = record.get("recommendation") or {}

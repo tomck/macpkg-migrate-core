@@ -10,13 +10,15 @@ from .core import (
     candidates_for,
     choose_candidate,
     dry_run,
+    host_bins,
     install_allowed,
+    install_method,
     load_snapshot,
     plan_record,
 )
 
 __all__ = [
     "AUTOMATIC", "REVIEW", "Candidate", "Identity", "candidates_for",
-    "choose_candidate", "dry_run", "install_allowed", "load_snapshot",
-    "plan_record",
+    "choose_candidate", "dry_run", "host_bins", "install_allowed",
+    "install_method", "load_snapshot", "plan_record",
 ]
