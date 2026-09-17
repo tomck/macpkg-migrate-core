@@ -1,6 +1,6 @@
 """Lightweight shared planning and safety primitives for Mac package migration."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from .core import (
     AUTOMATIC,
