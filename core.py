@@ -45,17 +45,20 @@ class Candidate:
     matching_method: str
     evidence: tuple[Any, ...]
     source_catalog_versions: Mapping[str, Any]
+    binaries: tuple[str, ...] = ()
 
     @classmethod
     def from_relation(cls, relation: Mapping[str, Any]) -> "Candidate":
+        target = relation.get("target", {})
         return cls(
-            target=Identity.from_record(relation.get("target", {})),
+            target=Identity.from_record(target),
             relation_type=relation.get("type", "equivalent"),
             confidence=float(relation.get("confidence", 0)),
             review_status=relation.get("review_status", REVIEW),
             matching_method=relation.get("matching_method", "unknown"),
             evidence=tuple(relation.get("evidence", ())),
             source_catalog_versions=relation.get("source_catalog_versions", {}),
+            binaries=tuple(target.get("binaries", ()) or ()),
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -63,6 +66,7 @@ class Candidate:
         result["target"] = self.target.as_dict()
         result["evidence"] = list(self.evidence)
         result["source_catalog_versions"] = dict(self.source_catalog_versions)
+        result["binaries"] = list(self.binaries)
         return result
 
 
@@ -106,13 +110,19 @@ def candidates_for(
 
 
 def choose_candidate(
-    candidates: Iterable[Candidate], preference: Iterable[str] = ()
+    candidates: Iterable[Candidate], preference: Iterable[str] = (), host: Iterable[str] | None = None,
 ) -> Candidate | None:
-    """Choose only an automatic candidate, never a review-only near-hit."""
+    """Choose only an automatic candidate, never a review-only near-hit.
+
+    Safety first (automatic-only), then binary availability (binary >
+    unknown > source), then confidence. Binary rank never overrides safety
+    and never changes confidence — ranking only.
+    """
     preference = tuple(preference)
     eligible = [candidate for candidate in candidates if candidate.review_status == AUTOMATIC]
     eligible.sort(
         key=lambda candidate: (
+            binary_rank(candidate, host),
             -candidate.confidence,
             preference.index(candidate.target.manager)
             if candidate.target.manager in preference else len(preference),
@@ -127,10 +137,11 @@ def plan_record(
     candidates: Iterable[Candidate],
     catalog_version: str | None,
     preference: Iterable[str] = (),
+    host: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     """Build a serializable, manager-neutral migration plan record."""
     candidates = list(candidates)
-    chosen = choose_candidate(candidates, preference)
+    chosen = choose_candidate(candidates, preference, host)
     recommendation = None
     if chosen:
         recommendation = {
@@ -145,6 +156,8 @@ def plan_record(
             "source_catalog_versions": dict(chosen.source_catalog_versions),
             "review_status": chosen.review_status,
             "target": chosen.target.as_dict(),
+            "binaries": list(chosen.binaries),
+            "install_method": install_method(chosen.binaries, host),
         }
     return {
         "source": source.as_dict(),
@@ -166,7 +179,9 @@ DARWIN_BOTTLE_TAGS = {
     24: "sequoia",
     25: "tahoe",
 }
-FINK_TREES = {18: "10.14", 19: "10.15"}
+# Live-proven bindist trees (catalog slice 4a): 10.13/10.14 publish Packages.gz;
+# 10.15 has a Release but no Packages index.
+FINK_TREES = {17: "10.13", 18: "10.14"}
 
 
 def host_bins(system: str | None = None, machine: str | None = None, mac_major: int | None = None) -> set[str]:
@@ -211,6 +226,29 @@ def install_method(binaries: Iterable[str], host: Iterable[str] | None = None) -
         return "binary"
     host = set(host_bins() if host is None else host)
     return "binary" if set(binaries) & host else "source"
+
+
+INSTALL_RANK = {"binary": 0, "unknown": 1, "source": 2}
+
+
+def binary_rank(candidate: Candidate | Mapping[str, Any] | Iterable[str], host: Iterable[str] | None = None) -> int:
+    """Rank boost for binary availability: 0 binary, 1 unknown, 2 source.
+
+    Pure ranking input; never confidence, never safety. Accepts a Candidate,
+    a relation/target mapping with a ``binaries`` key, or a raw binaries list.
+    Host detection stays in adapters — pass ``host`` explicitly in tests.
+    """
+    if isinstance(candidate, Candidate):
+        binaries = candidate.binaries
+    elif isinstance(candidate, Mapping):
+        binaries = candidate.get("binaries", ())
+        if isinstance(binaries, Mapping):
+            binaries = ()
+        elif isinstance(candidate.get("target"), Mapping) and not binaries:
+            binaries = candidate["target"].get("binaries", ())
+    else:
+        binaries = candidate
+    return INSTALL_RANK[install_method(binaries or [], host)]
 
 
 def install_allowed(record: Mapping[str, Any]) -> bool:

@@ -1,12 +1,13 @@
 """Lightweight shared planning and safety primitives for Mac package migration."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from .core import (
     AUTOMATIC,
     REVIEW,
     Candidate,
     Identity,
+    binary_rank,
     candidates_for,
     choose_candidate,
     dry_run,
@@ -18,7 +19,7 @@ from .core import (
 )
 
 __all__ = [
-    "AUTOMATIC", "REVIEW", "Candidate", "Identity", "candidates_for",
+    "AUTOMATIC", "REVIEW", "Candidate", "Identity", "binary_rank", "candidates_for",
     "choose_candidate", "dry_run", "host_bins", "install_allowed",
     "install_method", "load_snapshot", "plan_record",
 ]
