@@ -17,9 +17,14 @@ jobs:
       - run: python -m pip install dist/*.whl
       - run: |
           python - <<'PY'
+          import re
+          from pathlib import Path
+          expected = re.search(r'^version\s*=\s*"([^"]+)"',
+                               Path("pyproject.toml").read_text(), re.M).group(1)
           import macpkg_migrate_core
           from macpkg_migrate_core import Identity
-          assert macpkg_migrate_core.__version__ == "0.3.1"
+          assert macpkg_migrate_core.__version__ == expected, (
+              macpkg_migrate_core.__version__, expected)
           assert Identity("homebrew", "formula", "wget").native_name == "wget"
           print("installed package smoke test passed")
           PY
